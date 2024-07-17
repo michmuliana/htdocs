@@ -49,91 +49,85 @@ if ($conn->query($sql) === TRUE) {
 // Select the database for use
 $conn->select_db($dbname);
 
-// Create Name Table
+// Create Users Table
 $sql =
-    "CREATE TABLE students (" .
-    "id INT(9) UNSIGNED PRIMARY KEY," .
-    "name VARCHAR(60) NOT NULL," .
-    "firstName VARCHAR(30) NOT NULL," .
-    "lastName VARCHAR(30) NOT NULL," .
-    "passHash VARCHAR(255) NOT NULL" .
+    "CREATE TABLE users (" .
+    "user_id INT(9) UNSIGNED PRIMARY KEY," .
+    "username VARCHAR(60) NOT NULL," .
+    "first_name VARCHAR(30) NOT NULL," .
+    "last_name VARCHAR(30) NOT NULL," .
+    "password VARCHAR(255) NOT NULL" .
     ");";
 if ($conn->query($sql) === TRUE) {
-    echo "Table students created successfully" . "<br>";
+    echo "Table users created successfully" . "<br>";
 } else {
     die("Error creating table: " . $conn->error . "<br>");
 }
 
-// Create Course Table // finalGrade is a virtual column (test1*0.2 + test2*0.2 + test3*0.2 + finalExam*0.4)
+// Create Suppliers Table
 $sql =
-    "CREATE TABLE course (" .
-    "id INT(9) UNSIGNED," .
-    "FOREIGN KEY (id) REFERENCES students(id)," .
-    "course VARCHAR(5) NOT NULL," .
-    "test1 float(5,1)," .
-    "test2 float(5,1)," .
-    "test3 float(5,1)," .
-    "finalExam float(5,1)," .
-    "feedback TEXT" .  // Adding the feedback column
+    "CREATE TABLE suppliers (" .
+    "supplier_id INT(9) UNSIGNED PRIMARY KEY," .
+    "supplier_name VARCHAR(60) NOT NULL," .
+    "address VARCHAR(255) NOT NULL," .
+    "phone VARCHAR(30) NOT NULL" .
+    "email VARCHAR(60) NOT NULL" .
     ");";
 if ($conn->query($sql) === TRUE) {
-    echo "Table course created successfully" . "<br>";
+    echo "Table suppliers created successfully" . "<br>";
 } else {
     die("Error creating table: " . $conn->error . "<br>");
 }
 
-// Add Virtual Column finalGrade to the course table
-$sql = "ALTER TABLE course ADD finalGrade float(5,1) AS (test1*0.2 + test2*0.2 + test3*0.2 + finalExam*0.4)";
-if ($conn->query($sql) === TRUE) {
-    echo "Virtual column finalGrade added to course table" . "<br>";
-} else {
-    die("Error adding virtual column: " . $conn->error . "<br>");
-}
-
-// Create Course Index table
+// Create Products Table
 $sql =
-    "CREATE TABLE courseIndex (" .
-    "course VARCHAR(5) NOT NULL PRIMARY KEY," .
-    "courseName VARCHAR(60)" .
+    "CREATE TABLE products (" .
+    "product_id INT(9) UNSIGNED PRIMARY KEY," .
+    "description VARCHAR(255) NOT NULL," .
+    "product_name VARCHAR(60) NOT NULL," .
+    "price DECIMAL(10,2) NOT NULL" .
+    "quantity INT(9) UNSIGNED" .
+    "status VARCHAR(30) NOT NULL" .
     ");";
 if ($conn->query($sql) === TRUE) {
-    echo "Table courseIndex created successfully" . "<br>";
+    echo "Table products created successfully" . "<br>";
 } else {
     die("Error creating table: " . $conn->error . "<br>");
 }
 
-// Create Feedback Table
+// Create Orders Table
 $sql =
-    "CREATE TABLE feedback (" .
-    "id INT(9) UNSIGNED," .
-    "FOREIGN KEY (id) REFERENCES students(id)," .
-    "course VARCHAR(5) NOT NULL," .
-    "feedback TEXT NOT NULL" .
+    "CREATE TABLE orders (" .
+    "order_id INT(9) UNSIGNED," .
+    "FOREIGN KEY (user_id) REFERENCES users(user_id)," .
+    "FOREIGN KEY (product_id) REFERENCES products(product_id)," .
+    "quantity INT(9) UNSIGNED," .
+    "order_date timestamp DEFAULT CURRENT_TIMESTAMP," .
     ");";
 if ($conn->query($sql) === TRUE) {
-    echo "Table feedback created successfully" . "<br>";
+    echo "Table orders created successfully" . "<br>";
 } else {
     die("Error creating table: " . $conn->error . "<br>");
 }
 
-// prepare and bind insert statement for students
-$stmt = $conn->prepare("INSERT INTO students (id, name, firstName, lastName, passHash) VALUES (?, ?, ?, ?, ?)");
-$stmt->bind_param("issss", $id, $name, $firstName, $lastName, $passHash);
+// prepare and bind insert statement for users
+$stmt = $conn->prepare("INSERT INTO users (user_id, username, first_name, last_name, password) VALUES (?, ?, ?, ?, ?)");
+$stmt->bind_param("issss", $user_id, $username, $first_name, $last_name, $password);
 
 // insert all students from the NameFile.txt
-$filename = "data/NameFile.txt";
+$filename = "data/Users.txt";
 $lines = file($filename);
 foreach ($lines as $line) {
     $line = trim($line);
     $line = explode(", ", $line);
-    $id = $line[0];
-    $name = $line[1];
+    $user_id = $line[0];
+    $username = $line[1];
+    $name = $line[2];
+    $base_password = $line[3];
     $splitName = explode(" ", $name);
     $firstName = $splitName[0];
     $lastName = $splitName[1];
-    # default password is the first 4 characters of the lastname and the last 4 characters of the id
-    $defaultPassword = substr($lastName, 0, 4) . substr($id, -4);
-    $passHash = md5($defaultPassword);
+    $password = md5($base_password);
     $stmt->execute();
 }
 
@@ -141,39 +135,44 @@ foreach ($lines as $line) {
 $stmt->close();
 
 
-// prepare and bind insert statement for course
-$stmt = $conn->prepare("INSERT INTO course (id, course, test1, test2, test3, finalExam, feedback) VALUES (?, ?, ?, ?, ?, ?, ?)");
-$stmt->bind_param("isdddds", $id, $course, $test1, $test2, $test3, $finalExam, $feedback); // Assuming feedback is a string
+// prepare and bind insert statement for suppliers
+$stmt = $conn->prepare("INSERT INTO suppliers (supplier_id, supplier_name, address, phone, email) VALUES (?, ?, ?, ?, ?)");
+$stmt->bind_param("issss", $supplier_id, $supplier_name, $address, $phone, $email);
 
-// insert all students from the CourseFile.txt
-$filename = "data/CourseFile.txt";
+// insert all suppliers from the Supplier.txt file
+$filename = "data/Supplier.txt";
 $lines = file($filename);
 foreach ($lines as $line) {
     $line = trim($line);
     $line = explode(", ", $line);
-    $id = $line[0];
-    $course = $line[1];
-    $test1 = $line[2];
-    $test2 = $line[3];
-    $test3 = $line[4];
-    $finalExam = $line[5];
+    $supplier_id = $line[0];
+    $supplier_name = $line[1];
+    $address = $line[2];
+    $phone = $line[3];
+    $email = $line[4];
     $stmt->execute();
 }
 
 // close the statement
 $stmt->close();
 
-// Add in the Course Index Table data (get from CourseNames.txt)
-$stmt = $conn->prepare("INSERT INTO courseIndex (course, courseName) VALUES (?, ?)");
-$stmt->bind_param("ss", $course, $courseName);
+// Add in the products to the products table
+$stmt = $conn->prepare("INSERT INTO products (product_id, description, product_name, price, quantity, status, supplier_id) VALUES (?, ?, ?, ?, ?, ?, ?)");
+$stmt->bind_param("isssiss", $product_id, $description, $product_name, $price, $quantity, $status, $supplier_id);
 
-$filename = "data/CourseNames.txt";
+// insert all products from the Product.txt file
+$filename = "data/Product.txt";
 $lines = file($filename);
 foreach ($lines as $line) {
     $line = trim($line);
     $line = explode(", ", $line);
-    $course = $line[0];
-    $courseName = $line[1];
+    $product_id = $line[0];
+    $description = $line[2];
+    $product_name = $line[1];
+    $price = $line[3];
+    $quantity = $line[4];
+    $status = $line[5];
+    $supplier_id = $line[6];
     $stmt->execute();
 }
 
@@ -181,35 +180,37 @@ foreach ($lines as $line) {
 $stmt->close();
 
 
-// Print the data from the students table
-$sql = "SELECT * FROM students";
+// Print the data from the supplier table
+$sql = "SELECT * FROM suppliers";
 $result = $conn->query($sql);
 if ($result->num_rows > 0) {
-    echo "<br>Students Table: " . "<br>";
+    echo "<br>Supplier Table: " . "<br>";
     /* create html table */
     echo "<table border='1'>";
-    echo "<tr><th>ID</th><th>Name</th><th>First Name</th><th>Last Name</th></tr>";
+    echo "<tr><th>ID</th><th>Supplier Name</th><th>Address</th><th>Phone</th><th>Email</th></tr>";
     while ($row = $result->fetch_assoc()) {
-        echo "<tr><td>" . $row["id"] . "</td><td>" . $row["name"] . "</td><td>" . $row["firstName"] . "</td><td>" . $row["lastName"] . "</td></tr>";
+        echo "<tr><td>" . $row["supplier_id"] . "</td><td>" . $row["supplier_name"] . 
+        "</td><td>" . $row["address"] . "</td><td>" . $row["phone"] . 
+        "</td><td>" . $row["email"] . "</td></tr>";
     }
     echo "</table>";
 } else {
     echo "0 results" . "<br>";
 }
 
-// Print the data from the course table
-$sql = "SELECT * FROM course";
+// Print the data from the products table
+$sql = "SELECT * FROM products";
 $result = $conn->query($sql);
 if ($result->num_rows > 0) {
-    echo "<br>Course Table: " . "<br>";
+    echo "<br>Products Table: " . "<br>";
     /* create html table */
     echo "<table border='1'>";
-    echo "<tr><th>ID</th><th>Course</th><th>Test 1</th><th>Test 2</th><th>Test 3</th><th>Final Exam</th><th>Final Grade</th></tr>";
+    echo "<tr><th>ID</th><th>Description</th><th>Product Name</th><th>Price</th><th>Quantity</th><th>Status</th><th>Supplier ID</th></tr>";
     while ($row = $result->fetch_assoc()) {
-        echo "<tr><td>" . $row["id"] . "</td><td>" . $row["course"] . 
-        "</td><td>" . $row["test1"] . "</td><td>" . $row["test2"] . 
-        "</td><td>" . $row["test3"] . "</td><td>" . $row["finalExam"] . 
-        "</td><td>" . $row["finalGrade"] . "</td></tr>";
+        echo "<tr><td>" . $row["product_id"] . "</td><td>" . $row["description"] . 
+        "</td><td>" . $row["product_name"] . "</td><td>" . $row["price"] . 
+        "</td><td>" . $row["quantity"] . "</td><td>" . $row["status"] . 
+        "</td><td>" . $row["supplier_id"] . "</td></tr>";
     }
     echo "</table>";
 } else {
